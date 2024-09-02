@@ -37,7 +37,6 @@ void setup () {
   }
 //--- Begin SPI
   vspi.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI, MCP2515_CS); // SCLK, MISO, MOSI, SS
-  // SPI.begin (VSPI) ;
 
 //--- Configure ACAN2515
   Serial.println ("Configure ACAN2515") ;
@@ -79,83 +78,34 @@ static uint32_t gSentFrameCount = 0 ;
 
 // //——————————————————————————————————————————————————————————————————————————————
 
+uint8_t id_cnt = 0;
 void loop () {
-  CANMessage frame ;
+  CANMessage rx_frame;
+
   if (gBlinkLedDate < millis ()) {
+    CANMessage tx_frame;  
+    tx_frame.id = id_cnt++;
+    tx_frame.len = 8;
+    memset(tx_frame.data, tx_frame.id, tx_frame.len);
+
     gBlinkLedDate += 2000 ;
     digitalWrite (LED_BUILTIN, !digitalRead (LED_BUILTIN)) ;
-    const bool ok = can.tryToSend (frame) ;
+    const bool ok = can.tryToSend (tx_frame) ;
     if (ok) {
       gSentFrameCount += 1 ;
-      Serial.print ("Sent: ") ;
-      Serial.println (gSentFrameCount) ;
+      Serial.printf ("Sent ID:  0x%x \r\n", tx_frame.id) ;
     }else{
       Serial.println ("Send failure") ;
     }
   }
+
   if (can.available ()) {
-    can.receive (frame) ;
-    gReceivedFrameCount ++ ;
-    Serial.print ("Received: ") ;
-    Serial.println (gReceivedFrameCount) ;
+    can.receive (rx_frame) ;
+    Serial.printf("ID 0x%x, DLC %d, RTR %d, EXT %d, Data ", rx_frame.id, rx_frame.len, rx_frame.rtr, rx_frame.ext);
+    for(int i = 0; i < rx_frame.len; i++)
+    {
+      Serial.printf("0x%x ", rx_frame.data[i]);
+    }
+    Serial.println();
   }
 }
-
-/* The ESP32 has four SPi buses, however as of right now only two of
- * them are available to use, HSPI and VSPI. Simply using the SPI API
- * as illustrated in Arduino examples will use VSPI, leaving HSPI unused.
- *
- * However if we simply intialise two instance of the SPI class for both
- * of these buses both can be used. However when just using these the Arduino
- * way only will actually be outputting at a time.
- *
- * Logic analyser capture is in the same folder as this example as
- * "multiple_bus_output.png"
- *
- * created 30/04/2018 by Alistair Symonds
- */
-#include <SPI.h>
-#include "Arduino.h"
-
-static const int spiClk = 1000000; // 1 MHz
-
-
-void spiCommand(SPIClass *spi, byte data);
-uint8_t spiReadReg(SPIClass *spi, uint8_t addr);
-
-
-// the loop function runs over and over again until power down or reset
-// void loop()
-// {
-//   // use the SPI buses
-//   uint8_t read_val = spiReadReg(&vspi, 0x1F); // junk data to illustrate usage
-//   Serial.printf("Read Val 0x%.2x \r\n", read_val);
-//   delay(100);
-// }
-
-// void spiCommand(SPIClass *spi, uint8_t addr)
-// {
-//   // use it as you would the regular arduino SPI API
-//   spi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
-//   digitalWrite(spi->pinSS(), LOW); // pull SS slow to prep other end for transfer
-//   spi->transfer(0x03);
-//   spi->transfer(addr);
-
-//   digitalWrite(spi->pinSS(), HIGH); // pull ss high to signify end of data transfer
-//   spi->endTransaction();
-// }
-
-// uint8_t spiReadReg(SPIClass *spi, uint8_t addr)
-// {
-//   uint8_t val;
-//   spi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
-//   digitalWrite(spi->pinSS(), LOW); // pull SS slow to prep other end for transfer
-
-//   spi->transfer(addr);
-//   val =  spi->transfer(0);
-
-//   digitalWrite(spi->pinSS(), HIGH); // pull ss high to signify end of data transfer
-//   spi->endTransaction();
-
-//   return val;
-// }
