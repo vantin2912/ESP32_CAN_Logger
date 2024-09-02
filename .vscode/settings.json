@@ -21,6 +21,8 @@
         "algorithm": "cpp",
         "iomanip": "cpp",
         "ostream": "cpp",
-        "numeric": "cpp"
+        "numeric": "cpp",
+        "limits": "cpp",
+        "array": "cpp"
     }
 }
